@@ -1,4 +1,4 @@
 # MyFirstRepository
-##Lingchi S
-###STA 445
+## Lingchi S
+### STA 445
 nothing 

@@ -1,0 +1,137 @@
+---
+title: "Assignment5_445_LS"
+author: "LS"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)   # loading ggplot2 and dplyr
+library(viridis)     # The viridis color schemes
+library(latex2exp)   # For plotting math notation
+library(plotly)     # for interactive hover-text
+library(ggrepel) 
+library(stringr)
+```
+
+## Question 1
+
+1.  The `infmort` data set from the package `faraway` gives the infant mortality
+    rate for a variety of countries. The information is relatively out of date
+    (from 1970s?), but will be fun to graph. Visualize the data using by creating
+    scatter plots of mortality vs income while faceting using `region` and setting
+    color by `oil` export status. Utilize a $\log_{10}$ transformation for both
+    `mortality` and `income` axes. This can be done either by doing the
+    transformation inside the `aes()` command or by utilizing the `scale_x_log10()`
+    or `scale_y_log10()` layers. The critical difference is if the scales are on
+    the original vs log transformed scale. Experiment with both and see which you
+    prefer.
+```{r}
+graph<-faraway::infmort %>% drop_na() 
+ggplot(graph,aes(x=mortality,y=income,color=oil))+geom_point()+scale_y_log10()+facet_grid(.~region)
+
+```
+
+    a)  The `rownames()` of the table gives the country names and you should
+        create a new column that contains the country names. *`rownames`
+```{r}
+graph.2<-graph %>% mutate(CountryNames=rownames(graph))
+head(graph.2)
+```
+
+    b)  Create scatter plots with the `log10()` transformation inside the `aes()`
+        command.
+```{r}
+ggplot(graph,aes(x=mortality,y=income,color=oil,scale_y_log10()))+geom_point()+facet_grid(.~region)
+```
+
+    c)  Create the scatter plots using the `scale_x_log10()` and `scale_y_log10()`.
+        Set the major and minor breaks to be useful and aesthetically pleasing.
+        Comment on which version you find easier to read.
+```{r}
+ggplot(graph,aes(x=mortality,y=income,color=oil))+geom_point()+scale_y_log10(breaks = seq(1, 3000, 500))+scale_x_log10(breaks = seq(0, 600, 300))+facet_grid(.~region)
+```
+
+    d)  The package `ggrepel` contains functions `geom_text_repel()` and
+        `geom_label_repel()` that mimic the basic `geom_text()` and `geom_label()`
+        functions in `ggplot2`, but work to make sure the labels don't overlap.
+        Select 10-15 countries to label and do so using the `geom_text_repel()`
+        function.
+
+```{r}
+graph.3<-graph.2 %>% mutate(Country=if_else(str_detect(CountryNames,'ni'),CountryNames,NA))
+ggplot(graph.3,aes(x=mortality,y=income,color=oil))+
+  geom_point()+
+  scale_y_log10(breaks = seq(1, 3000, 500))+
+  scale_x_log10(breaks = seq(0, 600, 300))+
+  facet_grid(.~region)+
+  geom_text_repel(aes(label = Country))
+```
+notes: mutate new column,if_else to grab 15 countries (try string)(na/())
+## Question 2
+
+2. Using the `datasets::trees` data, complete the following:
+    a)  Create a regression model for $y=$ `Volume` as a function of $x=$ `Height`.
+```{r}
+model<-lm(Volume~Height,data=datasets::trees)
+model
+```
+    
+    b)  Using the `summary` command, get the y-intercept and slope of the
+        regression line.
+```{r}
+summary(model)
+```
+        
+    c)  Using `ggplot2`, create a scatter plot of Volume vs Height. 
+```{r}
+invisible(predict(model, interval='confidence'))
+trees <- datasets::trees %>%
+  dplyr::select( -matches('fit'), -matches('lwr'), -matches('upr') ) %>%
+  cbind( predict(model, interval='confidence') ) 
+ggplot(trees, aes(x=Height, y=Volume)) +
+  geom_point()+geom_line( aes(y=fit) ) +geom_ribbon( aes( ymin=lwr, ymax=upr), alpha=.3 )
+```
+  
+    d)  Create a nice white filled rectangle to add text information to using by
+        adding the following annotation layer.
+```{r}
+ggplot(trees, aes(x=Height, y=Volume)) +
+  geom_point()+geom_line( aes(y=fit) ) +geom_ribbon( aes( ymin=lwr, ymax=upr), alpha=.3 )+annotate('rect', xmin=65, xmax=75, ymin=60, ymax=74,
+                 fill='white', color='black')
+```
+        
+    e)  Add some annotation text to write the equation of the line
+        $\hat{y}_i = -87.12 + 1.54 * x_i$ in the text area.
+```{r}
+ggplot(trees, aes(x=Height, y=Volume)) +
+  geom_point()+geom_line( aes(y=fit) ) +geom_ribbon( aes( ymin=lwr, ymax=upr), alpha=.3 )+annotate('rect', xmin=65, xmax=75, ymin=60, ymax=74,
+                 fill='white', color='black')+
+  geom_text(x = 70, y = 68,label=expression(hat(y[i])==-87.12+1.54*x[i]),size=6)
+```
+Note:https://stat.ethz.ch/R-manual/R-devel/library/grDevices/html/plotmath.html
+    f)  Add annotation to add $R^2 = 0.358$
+```{r}
+ggplot(trees, aes(x=Height, y=Volume)) +
+  geom_point()+geom_line( aes(y=fit) ) +geom_ribbon( aes( ymin=lwr, ymax=upr), alpha=.3 )+
+  annotate('rect', xmin=65, xmax=75, ymin=60, ymax=74,
+                 fill='white', color='black')+
+  geom_text(x = 70, y = 70,label=latex2exp::TeX('$\\hat{y}_i = -87.12 + 1.54 * x_i$'),size=5)+
+  geom_text(x = 70, y = 63,label=expression(R^2==0.358),size=5)
+```
+
+    g)  Add the regression line in red. The most convenient layer function to uses
+        is `geom_abline()`. It appears that the `annotate` doesn't work with
+        `geom_abline()` so you'll have to call it directly.
+
+```{r}
+ggplot(trees, aes(x=Height, y=Volume)) +
+  geom_point()+geom_line( aes(y=fit) ) +geom_ribbon( aes( ymin=lwr, ymax=upr), alpha=.3 )+
+  annotate('rect', xmin=65, xmax=75, ymin=60, ymax=74,
+                 fill='white', color='black')+
+  geom_text(x = 70, y = 70,label=expression(hat(y[i])==-87.12+1.54*x[i]),size=5)+
+  geom_text(x = 70, y = 63,label=expression(R^2==0.358),size=5)
+```
+note: I delete geom_abline() based on today's discussion
